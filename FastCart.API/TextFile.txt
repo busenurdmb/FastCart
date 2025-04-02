@@ -1,0 +1,81 @@
+﻿🧠 Cache ve Redis Nedir?
+🔹 Cache (Önbellek) Nedir?
+Cache, sık sık erişilen verileri geçici olarak daha hızlı ulaşılabilir bir yerde (RAM gibi) saklama işlemidir.
+
+Amaç: Veritabanına veya başka yavaş kaynaklara her seferinde gitmemek.
+
+Örnek:
+
+Kullanıcının profil bilgileri.
+
+Ürün kategorileri.
+
+Site ayarları.
+--------------------------------
+🔹 Redis Nedir?
+Redis, çok hızlı çalışan bir in-memory (bellek içi) veritabanıdır. Aynı zamanda bir cache sistemi gibi de kullanılır.
+
+Açılımı: Remote Dictionary Server
+
+RAM tabanlı çalışır → Veriye milisaniyeler içinde ulaşılır.
+
+Verileri genelde key-value (anahtar-değer) şeklinde tutar.
+
+String, List, Set, Hash, SortedSet gibi farklı veri tiplerini destekler.
+
+En yaygın kullanım: Dağıtık sistemlerde cache olarak kullanmak.
+
+
+
+****************************
+🔁 Neden Redis ile Cache Kullanırız?
+Senaryo	Veritabanı	Redis (Cache)
+Hız	Görece yavaş (disk erişimi)	Çok hızlı (RAM'de çalışır)
+Maliyet (okuma yükü)	Artar	Azalır
+Tekrar eden veriye erişim	Her seferinde okur	Bir kez al, tekrar tekrar kullan
+Dağıtık sistemlerde oturum yönetimi	Karmaşık	Kolay
+Zaman aşımlı veri tutma (TTL)	Karmaşık	Basit
+
+
+*******************************
+Kullanıcı siteye giriş yaptı → Kullanıcı bilgileri Redis'e kaydedildi (cache)
+Sonraki isteklerde kullanıcı bilgisi doğrudan Redis'ten okunur
+→ Veritabanına tekrar gidilmez → Hızlı + Veritabanı yükü az
+----------------------------------------------
+
+📦 Redis Nasıl Çalışır?
+Redis'te genellikle şu komutlarla işlem yapılır:
+
+SET key value → veri ekler
+
+GET key → veri getirir
+
+DEL key → veri siler
+
+EXPIRE key 3600 → süreli veri tutar (TTL: time to live)
+
+-----------------------------------------------
+🔧 Uygulama Tarafı: RedisService vs RedisCacheService
+Yapı	Açıklama
+RedisService	Redis'e bağlantı sağlar (Connect, GetDb), daha düşük seviye.
+RedisCacheService	RedisService'in üstünde çalışan ve SetAsync, GetAsync gibi JSON veri işlemlerini yöneten katman. Uygulama seviyesinde kullanılır.
+
+
+
+⚙️ Redis'e Özgü Neler Kullanılıyor?
+Satır	Anlamı	Redis’e Özgü
+IConnectionMultiplexer	Redis bağlantısı yönetici	✅
+GetDatabase()	Redis'te hangi DB kullanılacağını belirler (0–15)	✅
+StringSetAsync	Key-Value yazma işlemi	✅
+StringGetAsync	Key ile değer alma	✅
+TimeSpan.FromHours(2)	Yazılan veriye süre (TTL) verilir	✅
+JsonConvert	Redis string tuttuğu için objeyi JSON’a çevirme	❌ (.NET'e özgü ama Redis'e uyum için gerekli)
+
+
+🔚 SONUÇ – Teknik Olarak Farklar
+Konu	CartService + RedisCacheService	RedisCartService + RedisService
+Redis bağlantısı	IConnectionMultiplexer DI'dan gelir	ConnectionMultiplexer.Connect() ile elle
+JSON yönetimi	Soyutlanmış (SetAsync, GetAsync)	Her seferinde elle serialize/deserialize
+Redis işlemleri	StringSetAsync, StringGetAsync – soyut	Aynı ama doğrudan, tekrar içerir
+Kod sade mi?	Evet, net, modüler	Hayır, daha manuel ve tekrar barındırır
+Mimari temizliği	Yüksek (SOLID'e uygun)	Düşük (her şey bir yerde)

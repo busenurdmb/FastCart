@@ -45,6 +45,51 @@ public class CartServiceTests
             It.Is<Cart>(c => c.Items.Count == 1 && c.Items[0].ProductId == "p1"),
             It.IsAny<TimeSpan>()), Times.Once);
     }
+    [Fact]
+    public async Task AddToCartAsync_ShouldIncreaseQuantity_WhenItemAlreadyExists()
+    {
+        // Arrange
+        var userId = "testUser";
+        var existingItem = new CartItem
+        {
+            ProductId = "p1",
+            ProductName = "Kalem",
+            Quantity = 1,
+            UnitPrice = 5
+        };
+
+        var existingCart = new Cart
+        {
+            UserId = userId,
+            Items = new List<CartItem> { existingItem }
+        };
+
+        var newItem = new CartItem
+        {
+            ProductId = "p1", // aynı ürün
+            ProductName = "Kalem",
+            Quantity = 2,     // yeni gelen adet
+            UnitPrice = 5
+        };
+
+        _cacheServiceMock.Setup(x => x.GetAsync<Cart>($"cart:{userId}"))
+                         .ReturnsAsync(existingCart);
+
+        // Act
+        await _cartService.AddToCartAsync(userId, newItem);
+
+        // Assert
+        _cacheServiceMock.Verify(x => x.SetAsync(
+            $"cart:{userId}",
+            It.Is<Cart>(c =>
+                c.Items.Count == 1 &&
+                c.Items[0].ProductId == "p1" &&
+                c.Items[0].Quantity == 3 // ✅ 1 + 2 = 3
+            ),
+            It.IsAny<TimeSpan>()
+        ), Times.Once);
+    }
+
 }
 
 //🔍 Açıklama:

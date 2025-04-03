@@ -4,6 +4,7 @@ using FastCart.Application.Interfaces;
 using Moq;
 using Microsoft.Extensions.Logging;
 
+
 namespace FastCart.Tests.Unit;
 
 public class CartServiceTests
@@ -22,11 +23,11 @@ public class CartServiceTests
         _cartService = new CartService(
        _cacheServiceMock.Object,
        _loggerMock.Object,
-       _rabbitMqServiceMock.Object // 👈 buraya da parametre olarak ver
+       _rabbitMqServiceMock.Object 
    );
         
     }
-
+    // ✅ Sepet boşsa, ürün ilk defa ekleniyorsa → sepete yeni ürün eklenmeli
     [Fact]
     public async Task AddToCartAsync_ShouldAddNewItem_WhenCartIsEmpty()
     {
@@ -45,6 +46,8 @@ public class CartServiceTests
             It.Is<Cart>(c => c.Items.Count == 1 && c.Items[0].ProductId == "p1"),
             It.IsAny<TimeSpan>()), Times.Once);
     }
+
+    // ✅ Sepette zaten aynı ürün varsa → sadece adeti artırılmalı
     [Fact]
     public async Task AddToCartAsync_ShouldIncreaseQuantity_WhenItemAlreadyExists()
     {
@@ -90,11 +93,56 @@ public class CartServiceTests
         ), Times.Once);
     }
 
+    // ✅ Kullanıcının sepeti varsa → doğru şekilde getirilmeli
+    [Fact]
+    public async Task GetCartAsync_ShouldReturnCart_WhenExists()
+    {
+        // Arrange
+        var userId = "testUser";
+        var expectedCart = new Cart
+        {
+            UserId = userId,
+            Items = new List<CartItem>
+        {
+            new CartItem { ProductId = "p1", ProductName = "Kalem", Quantity = 2, UnitPrice = 5 }
+        }
+        };
+
+        _cacheServiceMock.Setup(x => x.GetAsync<Cart>($"cart:{userId}"))
+                         .ReturnsAsync(expectedCart);
+
+        // Act
+        var result = await _cartService.GetCartAsync(userId);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(1, result!.Items.Count);
+        Assert.Equal("p1", result.Items[0].ProductId);
+    }
+
+    // ✅ Kullanıcının sepeti silinmek istendiğinde → Redis’ten key silinmeli
+    [Fact]
+    public async Task ClearCartAsync_ShouldRemoveCartKey_FromCache()
+    {
+        // Arrange
+        var userId = "testUser";
+
+        // Act
+        await _cartService.ClearCartAsync(userId);
+
+        // Assert
+        _cacheServiceMock.Verify(x => x.RemoveAsync($"cart:{userId}"), Times.Once);
+    }
+
 }
 
 //🔍 Açıklama:
-//Kısım Anlamı
-//Mock<ICacheService> Gerçek ICacheService yerine sahte/mock nesne kullanılır
-//Setup(...).ReturnsAsync(...)    Mock nesneye, bir metot çağrıldığında ne döneceğini söyler
-//Verify(...) Metodun doğru çağrılıp çağrılmadığını kontrol eder
-//Fact Bu testin çalıştırılabilir bir test olduğunu belirtir
+//💬 Temel Test Terimleri ve Açıklamaları
+//Terim   Açıklama Örnek
+//Test Metodu Kodun belirli bir parçasını test eden fonksiyon AddToCartAsync_ShouldAddNewItem
+//[Fact]  Bu bir testtir! diye işaretler  xUnit’te her testin başına yazılır
+//Arrange Test için gerekli veriler hazırlanır Sahte kullanıcı, ürün vs.oluşturma
+//Act Test etmek istediğin metodu çağırırsın  AddToCartAsync(userId, item)
+//Assert  Sonuçlar beklediğin gibi mi kontrol edilir  Sepette 1 ürün var mı?
+//Mock    Gerçek servis yerine sahte versiyonunu kullanma Redis yerine Moq<ICacheService>
+//Verify  Mock'lanmış fonksiyon gerçekten çağrıldı mı kontrolü	SetAsync gerçekten çalıştı mı?

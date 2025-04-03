@@ -1,0 +1,134 @@
+﻿// 📁 Dosya: CartServiceTests.cs
+// 🧪 Amaç: CartService sınıfı için birim testleri yazmak
+
+// 👇 Bu sınıf, CartService’in içinde yer alan metodların doğru çalışıp çalışmadığını kontrol eder.
+public class CartServiceTests
+{
+    // 📌 Kullanılan Mock nesneleri:
+    private readonly Mock<ICacheService> _cacheServiceMock;           // Redis işlemlerini sahte servis ile test etmek için
+    private readonly Mock<ILogger<CartService>> _loggerMock;          // Loglama kontrolü için sahte logger
+    private readonly Mock<IRabbitMqService> _rabbitMqServiceMock;     // RabbitMQ mesaj gönderimini test etmiyoruz, sahte servis verdik
+
+    private readonly CartService _cartService; // Test edilecek sınıf
+
+    // 🧱 Arrange işlemlerini yapan kurucu metot
+    public CartServiceTests()
+    {
+        // Mock nesneleri başlat
+        _cacheServiceMock = new Mock<ICacheService>();
+        _loggerMock = new Mock<ILogger<CartService>>();
+        _rabbitMqServiceMock = new Mock<IRabbitMqService>();
+
+        // Gerçek CartService nesnesi, mock servislerle oluşturulur
+        _cartService = new CartService(
+            _cacheServiceMock.Object,
+            _loggerMock.Object,
+            _rabbitMqServiceMock.Object
+        );
+    }
+
+    // ✅ Test 1: Sepet boşsa → yeni ürün sepete eklenmeli
+    [Fact]
+    public async Task AddToCartAsync_ShouldAddNewItem_WhenCartIsEmpty()
+    {
+        // Arrange: Boş sepet durumu ayarlanır
+        var userId = "testUser";
+        var product = new CartItem { ProductId = "p1", ProductName = "Kalem", Quantity = 1, UnitPrice = 5 };
+
+        // Redis’ten null döndür (boş sepet)
+        _cacheServiceMock.Setup(x => x.GetAsync<Cart>($"cart:{userId}"))
+                         .ReturnsAsync((Cart?)null);
+
+        // Act: Sepete ürün ekle
+        await _cartService.AddToCartAsync(userId, product);
+
+        // Assert: SetAsync çağrıldı mı ve doğru ürün mü gönderildi kontrol et
+        _cacheServiceMock.Verify(x => x.SetAsync($"cart:{userId}",
+            It.Is<Cart>(c => c.Items.Count == 1 && c.Items[0].ProductId == "p1"),
+            It.IsAny<TimeSpan>()), Times.Once);
+    }
+
+    // ✅ Test 2: Sepette aynı ürün varsa → sadece adeti artırılmalı
+    [Fact]
+    public async Task AddToCartAsync_ShouldIncreaseQuantity_WhenItemAlreadyExists()
+    {
+        // Arrange: Sepette zaten 1 adet ürün varsa
+        var userId = "testUser";
+        var existingItem = new CartItem { ProductId = "p1", ProductName = "Kalem", Quantity = 1, UnitPrice = 5 };
+
+        var existingCart = new Cart
+        {
+            UserId = userId,
+            Items = new List<CartItem> { existingItem }
+        };
+
+        var newItem = new CartItem { ProductId = "p1", ProductName = "Kalem", Quantity = 2, UnitPrice = 5 };
+
+        _cacheServiceMock.Setup(x => x.GetAsync<Cart>($"cart:{userId}"))
+                         .ReturnsAsync(existingCart);
+
+        // Act: Aynı ürünü tekrar sepete ekle
+        await _cartService.AddToCartAsync(userId, newItem);
+
+        // Assert: Toplam adet 3 olmalı
+        _cacheServiceMock.Verify(x => x.SetAsync(
+            $"cart:{userId}",
+            It.Is<Cart>(c =>
+                c.Items.Count == 1 &&
+                c.Items[0].ProductId == "p1" &&
+                c.Items[0].Quantity == 3
+            ),
+            It.IsAny<TimeSpan>()
+        ), Times.Once);
+    }
+
+    // ✅ Test 3: Sepet varsa → doğru şekilde döndürülmeli
+    [Fact]
+    public async Task GetCartAsync_ShouldReturnCart_WhenExists()
+    {
+        // Arrange: Sepette 1 ürün var
+        var userId = "testUser";
+        var expectedCart = new Cart
+        {
+            UserId = userId,
+            Items = new List<CartItem>
+            {
+                new CartItem { ProductId = "p1", ProductName = "Kalem", Quantity = 2, UnitPrice = 5 }
+            }
+        };
+
+        _cacheServiceMock.Setup(x => x.GetAsync<Cart>($"cart:{userId}"))
+                         .ReturnsAsync(expectedCart);
+
+        // Act: Sepet getir
+        var result = await _cartService.GetCartAsync(userId);
+
+        // Assert: Doğru ürün ve sepet döndü mü
+        Assert.NotNull(result);
+        Assert.Equal(1, result!.Items.Count);
+        Assert.Equal("p1", result.Items[0].ProductId);
+    }
+
+    // ✅ Test 4: Sepet silinmek istendiğinde → Redis’ten key silinmeli
+    [Fact]
+    public async Task ClearCartAsync_ShouldRemoveCartKey_FromCache()
+    {
+        // Arrange
+        var userId = "testUser";
+
+        // Act: Sepeti sil
+        await _cartService.ClearCartAsync(userId);
+
+        // Assert: RemoveAsync çağrıldı mı kontrol et
+        _cacheServiceMock.Verify(x => x.RemoveAsync($"cart:{userId}"), Times.Once);
+    }
+}
+
+🧠 Ek Bilgi: Test Terminolojisi
+Terim	Açıklama
+[Fact]	Test metodu olduğunu belirtir (xUnit)
+Arrange	Testin verilerini hazırla (örnek kullanıcı, ürün, mock setup)
+Act	Test etmek istediğin metodu çalıştır
+Assert	Çıkan sonucu kontrol et, doğru mu?
+Mock	Gerçek servis yerine sahte servis kullanmak
+Verify	Mock nesnesi gerçekten çağrıldı mı? kontrol et

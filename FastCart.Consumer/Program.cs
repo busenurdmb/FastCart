@@ -4,8 +4,12 @@ using System.Text;
 using System.Text.Json;
 
 Console.WriteLine("🎧 RabbitMQ Consumer çalışıyor...");
-
-var factory = new ConnectionFactory() { HostName = "localhost" };
+// Bağlantı oluştur
+var factory = new ConnectionFactory()
+{
+    HostName = "localhost",
+    Port = 5673 // Docker dış portu
+};
 using var connection = factory.CreateConnection();
 using var channel = connection.CreateModel();
 

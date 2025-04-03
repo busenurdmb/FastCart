@@ -10,7 +10,11 @@ public class RabbitMqService : IRabbitMqService
 
     public RabbitMqService()
     {
-        var factory = new ConnectionFactory() { HostName = "localhost" };
+        var factory = new ConnectionFactory()
+        {
+            HostName = "localhost",
+            Port = 5673 // Docker dış portu (docker-compose.yml'deki ayara göre)
+        };
         _connection = factory.CreateConnection();
     }
 

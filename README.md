@@ -4,6 +4,44 @@ Modern mimariyle geliştirilen FastCart projesi, .NET 9 kullanılarak Redis cach
 
 ---
 
+## 🧠 Redis Nedir?
+
+**Redis**, verileri geçici olarak saklayan, çok hızlı çalışan bir **veritabanıdır**. Ama klasik SQL ya da NoSQL veritabanlarından farklı olarak:
+
+- Bellek (RAM) üzerinde çalışır
+- Disk yerine RAM kullandığı için milisaniyelik hızda veri okuma/yazma sağlar
+- Genellikle cache (önbellekleme), gerçek zamanlı veri yönetimi ve geçici veri saklama için kullanılır
+
+**Ne zaman kullanılır?**
+- Oturum (session) verisi tutmak
+- Ziyaretçi sayaçları
+- Sepet/favori listesi gibi kullanıcıya özel geçici veriler
+
+Bu projede Redis şu şekilde kullanıldı:
+- Her kullanıcı için `cart:{userId}` formatında eşsiz Redis anahtarları oluşturuldu
+- Sepet verileri Redis'e yazıldı, 2 saat süreyle saklandı (TTL özelliği)
+- Gerçek zamanlı, hızlı ve geçici bir yapı sağlandı
+
+---
+
+## 🧪 Unit Test Nedir?
+
+**Unit Test**, bir uygulamanın en küçük parçalarının (örneğin bir fonksiyon, bir servis) doğru çalışıp çalışmadığını test eden otomatik kontrollerdir.
+
+**Neden önemlidir?**
+- Yazdığın kodun doğru çalışıp çalışmadığını kontrol eder
+- Kod değişikliklerinde hata oluşup oluşmadığını erken tespit etmeyi sağlar
+- Geliştirme sürecinde güven kazandırır ve hata ayıklamayı kolaylaştırır
+
+**Örnek:**
+Bir `Topla(a, b)` fonksiyonu varsa, `Topla(2, 3)` sonucunun 5 olduğunu test eden bir Unit Test yazılır.
+
+Bu projede `CartService` için xUnit kullanılarak yazılmış Unit Test senaryoları şunları kontrol eder:
+- ✅ Yeni ürün sepete eklendiğinde doğru şekilde ekleniyor mu?
+- 🔁 Aynı ürün tekrar eklenirse miktarı artırılıyor mu?
+- 🧹 Sepet temizlendiğinde Redis’ten siliniyor mu?
+
+---
 ## 🎯 Amaç
 
 Bu proje, aşağıdaki teknolojileri öğrenmek ve entegre şekilde kullanmak için geliştirilmiştir:
@@ -245,4 +283,8 @@ Projeye katkı sağlamak isterseniz PR gönderebilir veya Issue oluşturabilirsi
 
 > Hazırlayan: [@busenurdmb](https://github.com/busenurdmb)  
 > Lisans: MIT
+
+
+
+
 

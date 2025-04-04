@@ -49,7 +49,7 @@ Bu proje, aşağıdaki teknolojileri öğrenmek ve entegre şekilde kullanmak i�
 - ☁️ Redis ile in-memory sepet yönetimi
 - 🐇 RabbitMQ ile mesaj kuyruğu yapısı
 - 🔍 Elasticsearch & 📊 Kibana ile log analizi
-- 🢾 Serilog ile çoklu hedefe loglama
+- 🧾 Serilog ile çoklu hedefe loglama
 - ✅ xUnit ile Unit Test altyapısı
 
 ---
